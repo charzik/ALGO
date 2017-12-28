@@ -1,5 +1,5 @@
 #include <iostream>
-#include <stdio.h>
+#include <cstdio>
 #include <vector>
 
 using namespace std;
@@ -11,60 +11,52 @@ struct Node {
     Node* next;
 };
 
-class ListIterator {
-public:
-    ListIterator(Node* node): node(node)
-        {}
-
-    int& operator*() const {
-        return node->val;
-    }
-
-    ListIterator& operator++() {
-        node = node->next;
-        return *this;
-    }
-
-    bool operator==(ListIterator other) const {
-        return node == other.node;
-    }
-
-    bool operator!=(ListIterator other) const {
-        return node != other.node;
-    }
-
-private:
-    Node* node;
-};
-
 class List {
 public:
+    friend void Merge(List& lst1, List& lst2, List& newList);
+    friend void mergeSort(List& lst);
+    friend void split(List& lst, Node* it, List& lhs, List& rhs);
+
     List(): first(nullptr), last(nullptr)
         {}
 
     void push(int val) {
-        Node* cur = new Node(val, nullptr);
+        Node* node = new Node(val, nullptr);
         if (first == nullptr) {
-            first = last = cur;
+            first = last = node;
+            return;
         }
-        last->next = cur;
-        last = cur;
+        last->next = node;
+        last = node;
     }
 
-    ListIterator begin() const {
-        return {first};
+    void push(Node* node) {
+        if (node == nullptr)
+            return;
+        if (first == nullptr) {
+            first = last = node;
+            return;
+        }
+        last->next = node;
+        while (node->next != nullptr)
+            node = node->next;
+        last = node;
     }
 
-    ListIterator end() const {
-        return {last->next};
+    Node* begin() {
+        return first;
+    }
+
+    Node* end() {
+        return nullptr;
     }
 
     ~List() {
-        auto cur = first;
-        while (cur != nullptr) {
-            auto tmp = cur->next;
-            delete cur;
-            cur = tmp;
+        auto node = first;
+        while (node != nullptr) {
+            auto next = node->next;
+            delete node;
+            node = next;
         }
     }
 
@@ -73,53 +65,64 @@ private:
     Node* last;
 };
 
-template<typename Iter, typename OIter>
-void Copy(Iter L, Iter R, OIter out) {
-    while (L != R) {
-        *out = *L;
-        ++L;
-        ++out;
+std::ostream& operator<<(std::ostream& out, List& lst) {
+    auto it = lst.begin();
+    while (it != lst.end()) {
+        out << it->val << ' ';
+        it = it->next;
     }
+    return out;
 }
 
-template<typename Iter1, typename Iter2, typename OIter>
-void Merge(Iter1 L1, Iter2 R1, Iter2 L2, Iter2 R2, OIter out) {
-    while (L1 != R1 && L2 != R2) {
-        if (*L2 < *L1) {
-            *out = *L2;
-            ++L2;
+void Merge(List& lst1, List& lst2, List& newList) {
+    auto it1 = lst1.begin();
+    auto it2 = lst2.begin();
+    while (it1 != lst1.end() && it2 != lst2.end()) {
+        if (it1->val < it2->val) {
+            auto nextNode = it1->next;
+            it1->next = nullptr;
+            newList.push(it1);
+            it1 = nextNode;
         } else {
-            *out = *L1;
-            ++L1;
+            auto nextNode = it2->next;
+            it2->next = nullptr;
+            newList.push(it2);
+            it2 = nextNode;
         }
-        ++out;
     }
-    Copy(L1, R1, out);
-    Copy(L2, R2, out);
+    newList.push(it1);
+    newList.push(it2);
+    lst1.first = lst1.last = nullptr;
+    lst2.first = lst2.last = nullptr;
 }
 
-template<typename Iter>
-void mergeSort(Iter L, Iter R) {
-    auto check = L;
-    ++check;
-    if (R == check)
+void split(List& lst, Node* it, List& lhs, List& rhs) {
+    lhs.first = lst.first;
+    rhs.last = lst.last;
+    lhs.last = it;
+    rhs.first = it->next;
+    lhs.last->next = nullptr;
+    lst.first = lst.last = nullptr;
+}
+
+void mergeSort(List& lst) {
+    if (lst.first == lst.last)
         return;
 
-    int n = 0;
-    auto l = L;
-    auto r = R;
-    while (l != r) {
-        ++n;
-        ++l;
+    int sz = 0;
+    auto it = lst.begin();
+    while (it != lst.end()) {
+        ++sz;
+        it = it->next;
     }
-    auto M = L;
-    for (int i = 0; i < n / 2; ++i)
-        ++M;
-    mergeSort(L, M);
-    mergeSort(M, R);
-    vector<int> c(n);
-    Merge(L, M, M, R, c.begin());
-    Copy(c.begin(), c.end(), L);
+    auto M = lst.begin();
+    for (int i = 0; i < sz / 2 - 1; ++i)
+        M = M->next;
+    List lhs, rhs;
+    split(lst, M, lhs, rhs);
+    mergeSort(lhs);
+    mergeSort(rhs);
+    Merge(lhs, rhs, lst);
 }
 
 int main() {
@@ -128,17 +131,13 @@ int main() {
 
     int n;
     cin >> n;
-    List L;
+    List lst;
     for (int i = 0; i < n; ++i) {
         int a;
         cin >> a;
-        L.push(a);
+        lst.push(a);
     }
-    mergeSort(L.begin(), L.end());
-    auto it = L.begin();
-    while (it != nullptr) {
-        cout << *it << ' ';
-        ++it;
-    }
+    mergeSort(lst);
+    cout << lst;
     return 0;
 }
