@@ -1,143 +1,154 @@
 #include <iostream>
-#include <cstdio>
-#include <vector>
-
-using namespace std;
-
-struct Node {
-    Node(int val, Node* next): val(val), next(next)
-        {}
-    int val;
-    Node* next;
-};
-
-class List {
-public:
-    friend void Merge(List& lst1, List& lst2, List& newList);
-    friend void mergeSort(List& lst);
-    friend void split(List& lst, Node* it, List& lhs, List& rhs);
-
-    List(): first(nullptr), last(nullptr)
-        {}
-
-    void push(int val) {
-        Node* node = new Node(val, nullptr);
-        if (first == nullptr) {
-            first = last = node;
-            return;
-        }
-        last->next = node;
-        last = node;
-    }
-
-    void push(Node* node) {
-        if (node == nullptr)
-            return;
-        if (first == nullptr) {
-            first = last = node;
-            return;
-        }
-        last->next = node;
-        while (node->next != nullptr)
-            node = node->next;
-        last = node;
-    }
-
-    Node* begin() {
-        return first;
-    }
-
-    Node* end() {
-        return nullptr;
-    }
-
-    ~List() {
-        auto node = first;
-        while (node != nullptr) {
-            auto next = node->next;
-            delete node;
-            node = next;
-        }
-    }
-
-private:
-    Node* first;
-    Node* last;
-};
-
-std::ostream& operator<<(std::ostream& out, List& lst) {
-    auto it = lst.begin();
-    while (it != lst.end()) {
-        out << it->val << ' ';
-        it = it->next;
-    }
-    return out;
-}
-
-void Merge(List& lst1, List& lst2, List& newList) {
-    auto it1 = lst1.begin();
-    auto it2 = lst2.begin();
-    while (it1 != lst1.end() && it2 != lst2.end()) {
-        if (it1->val < it2->val) {
-            auto nextNode = it1->next;
-            it1->next = nullptr;
-            newList.push(it1);
-            it1 = nextNode;
-        } else {
-            auto nextNode = it2->next;
-            it2->next = nullptr;
-            newList.push(it2);
-            it2 = nextNode;
-        }
-    }
-    newList.push(it1);
-    newList.push(it2);
-    lst1.first = lst1.last = nullptr;
-    lst2.first = lst2.last = nullptr;
-}
-
-void split(List& lst, Node* it, List& lhs, List& rhs) {
-    lhs.first = lst.first;
-    rhs.last = lst.last;
-    lhs.last = it;
-    rhs.first = it->next;
-    lhs.last->next = nullptr;
-    lst.first = lst.last = nullptr;
-}
-
-void mergeSort(List& lst) {
-    if (lst.first == lst.last)
-        return;
-
-    int sz = 0;
-    auto it = lst.begin();
-    while (it != lst.end()) {
-        ++sz;
-        it = it->next;
-    }
-    auto M = lst.begin();
-    for (int i = 0; i < sz / 2 - 1; ++i)
-        M = M->next;
-    List lhs, rhs;
-    split(lst, M, lhs, rhs);
-    mergeSort(lhs);
-    mergeSort(rhs);
-    Merge(lhs, rhs, lst);
-}
-
-int main() {
-    // freopen("input.txt", "r", stdin);
-    // freopen("output.txt", "w", stdout);
-
-    int n;
-    cin >> n;
-    List lst;
-    for (int i = 0; i < n; ++i) {
-        int a;
-        cin >> a;
-        lst.push(a);
-    }
-    mergeSort(lst);
-    cout << lst;
-    return 0;
-}
+ +#include <cstdio>
+ +#include <vector>
+ +
+ +using namespace std;
+ +
+ +struct Node {
+ +    Node(int val, Node* next): val(val), next(next)
+ +    {}
+ +    int val;
+ +    Node* next;
+ +};
+ +
+ +class List {
+ +public:
+ +    friend void Merge(List& lst1, List& lst2, List& newList);
+ +    friend void mergeSort(List& lst);
+ +    friend void split(List& lst, Node* it, List& lhs, List& rhs);
+ +    
+ +    List(): first(nullptr), last(nullptr)
+ +    {}
+ +    
+ +    void push(int val) {
+ +        Node* node = new Node(val, nullptr);
+ +        if (first == nullptr) {
+ +            first = last = node;
+ +            return;
+ +        }
+ +        last->next = node;
+ +        last = node;
+ +    }
+ +    
+ +    void splice(Node* node) {
+ +        if (node == nullptr)
+ +            return;
+ +        if (first == nullptr) {
+ +            first = node;
+ +            while (node->next != nullptr)
+ +                node = node->next;
+ +            last = node;
+ +            return;
+ +        }
+ +        last->next = node;
+ +        while (node->next != nullptr)
+ +            node = node->next;
+ +        last = node;
+ +    }
+ +    
+ +    Node* begin() {
+ +        return first;
+ +    }
+ +    
+ +    Node* end() {
+ +        return nullptr;
+ +    }
+ +    
+ +    const Node* begin() const {
+ +        return first;
+ +    }
+ +    
+ +    const Node* end() const {
+ +        return nullptr;
+ +    }
+ +    
+ +    ~List() {
+ +        auto node = first;
+ +        while (node != nullptr) {
+ +            auto next = node->next;
+ +            delete node;
+ +            node = next;
+ +        }
+ +    }
+ +    
+ +private:
+ +    Node* first;
+ +    Node* last;
+ +};
+ +
+ +std::ostream& operator<<(std::ostream& out, const List& lst) {
+ +    auto it = lst.begin();
+ +    while (it != lst.end()) {
+ +        out << it->val << ' ';
+ +        it = it->next;
+ +    }
+ +    return out;
+ +}
+ +
+ +void Merge(List& lst1, List& lst2, List& newList) {
+ +    auto it1 = lst1.begin();
+ +    auto it2 = lst2.begin();
+ +    while (it1 != lst1.end() && it2 != lst2.end()) {
+ +        if (it1->val < it2->val) {
+ +            auto nextNode = it1->next;
+ +            it1->next = nullptr;
+ +            newList.splice(it1);
+ +            it1 = nextNode;
+ +        } else {
+ +            auto nextNode = it2->next;
+ +            it2->next = nullptr;
+ +            newList.splice(it2);
+ +            it2 = nextNode;
+ +        }
+ +    }
+ +    newList.splice(it1);
+ +    newList.splice(it2);
+ +    lst1.first = lst1.last = nullptr;
+ +    lst2.first = lst2.last = nullptr;
+ +}
+ +
+ +void split(List& lst, Node* it, List& lhs, List& rhs) {
+ +    lhs.first = lst.first;
+ +    rhs.last = lst.last;
+ +    lhs.last = it;
+ +    rhs.first = it->next;
+ +    lhs.last->next = nullptr;
+ +    lst.first = lst.last = nullptr;
+ +}
+ +
+ +void mergeSort(List& lst) {
+ +    if (lst.first == lst.last)
+ +        return;
+ +    
+ +    int sz = 0;
+ +    auto it = lst.begin();
+ +    while (it != lst.end()) {
+ +        ++sz;
+ +        it = it->next;
+ +    }
+ +    auto M = lst.begin();
+ +    for (int i = 0; i < sz / 2 - 1; ++i)
+ +        M = M->next;
+ +    List lhs, rhs;
+ +    split(lst, M, lhs, rhs);
+ +    mergeSort(lhs);
+ +    mergeSort(rhs);
+ +    Merge(lhs, rhs, lst);
+ +}
+ +
+ +int main() {
+ +    // freopen("input.txt", "r", stdin);
+ +    // freopen("output.txt", "w", stdout);
+ +    
+ +    int n;
+ +    cin >> n;
+ +    List lst;
+ +    for (int i = 0; i < n; ++i) {
+ +        int a;
+ +        cin >> a;
+ +        lst.push(a);
+ +    }
+ +    mergeSort(lst);
+ +    cout << lst << endl;
+ +    return 0;
+ +}
