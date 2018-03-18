@@ -7,51 +7,41 @@
 template<class KeyType, class ValueType, class Hash = std::hash<KeyType>>
 class HashMap {
 public:
-    using const_iterator = typename std::list<std::pair<const KeyType, ValueType>>::const_iterator;
-    using iterator = typename std::list<std::pair<const KeyType, ValueType>>::iterator;
+    using typeOfPair = typename std::pair<const KeyType, ValueType>;
+    using const_iterator = typename std::list<typeOfPair>::const_iterator;
+    using iterator = typename std::list<typeOfPair>::iterator;
     
-    HashMap(Hash hasher = Hash()) : hasher(hasher) {
-        table.resize(defaultSize, lst.end());
-        normalize();
+    HashMap(Hash hasher = Hash{}) : hasher(hasher) {
+        defaultParametrs();
     }
     
     template<class Iterator>
-    HashMap(Iterator left, Iterator right, Hash hasher = Hash()) : hasher(hasher) {
-        table.resize(defaultSize, lst.end());
-        normalize();
-        while (left != right)
-            insert(*(left++));
+    HashMap(Iterator first, Iterator last, Hash hasher = Hash{}) : hasher(hasher) {
+        defaultParametrs();
+        while (first != last)
+            insert(*(first++));
     }
     
-    HashMap(const std::initializer_list<std::pair<KeyType, ValueType>>& list,
-            Hash hasher = Hash()) : hasher(hasher) {
-        table.resize(defaultSize, lst.end());
-        normalize();
-        for (auto x : list)
-            insert(x);
-    }
+    HashMap(std::initializer_list<typeOfPair> copyList, Hash hasher = Hash{})
+    : HashMap(copyList.begin(), copyList.end(), hasher) {}
     
     HashMap(const HashMap& other) {
         clear();
-        table.resize(defaultSize, lst.end());
-        normalize();
-        for (auto x : other)
+        for (const auto& x : other)
             insert(x);
     }
     
     HashMap& operator=(const HashMap& other) {
-        if (this == &other)
+        if (this == std::addressof(other))
             return *this;
         clear();
-        table.resize(defaultSize, lst.end());
-        normalize();
         for (auto x : other)
             insert(x);
         return *this;
     }
     
     size_t size() const {
-        return curSize;
+        return sizeOfList;
     }
     
     bool empty() const {
@@ -62,116 +52,96 @@ public:
         return hasher;
     }
     
-    void erase(const KeyType& el) {
-        size_t i = hasher(el) % table.size();
-        if (table[i] == lst.end()) {
-            return;
-        } else {
-            auto it = table[i];
-            while (it != lst.end() && hasher(it->first) % table.size() == i) {
-                if (it->first == el) {
-                    if (it == table[i]) {
-                        auto nextIt = it;
-                        ++nextIt;
-                        if (nextIt == lst.end()) {
-                            table[i] = lst.end();
-                        } else {
-                            if (hasher(nextIt->first) % table.size() == i)
-                                table[i] = nextIt;
-                            else
-                                table[i] = lst.end();
-                        }
-                    }
-                    --curSize;
-                    lst.erase(it);
-                    return;
+    void erase(const KeyType& element) {
+        size_t i = hasher(element) % table.size();
+        auto it = table[i];
+        while (it != list.end() && hasher(it->first) % table.size() == i) {
+            if (it->first == element) {
+                if (it == table[i]) {
+                    auto nextIt = it;
+                    ++nextIt;
+                    table[i] = nextIt;
+                    if (hasher(nextIt->first) % table.size() != i)
+                        table[i] = list.end();
                 }
-                ++it;
+                --sizeOfList;
+                list.erase(it);
+                return;
             }
+            ++it;
         }
         return;
     }
     
-    void insert(const std::pair<const KeyType, ValueType>& el, bool fl = true) {
-        if (fl && (way > MAX_WAY))
-            recalc();
+    iterator insert(const typeOfPair& element, bool isFromRebuild = true) {
+        if (isFromRebuild && lenOfChain > maxLenOfChain)
+            rebuild();
         
-        size_t elHash = hasher(el.first);
-        size_t i = elHash % table.size();
-        if (table[i] == lst.end()) {
-            lst.push_front(el);
-            table[i] = lst.begin();
-            ++curSize;
-        } else {
-            size_t curWay = 0;
-            auto it = table[i];
-            while (it != lst.end() && hasher(it->first) % table.size() == i) {
-                if (it->first == el.first)
-                    break;
-                if (hasher(it->first) != elHash)
-                    ++curWay;
-                ++it;
-            }
-            way = curWay;
-            lst.insert(it, el);
-            ++curSize;
+        size_t elHash = hasher(element.first), i = elHash % table.size();
+        if (table[i] == list.end()) {
+            list.push_front(element);
+            table[i] = list.begin();
+            ++sizeOfList;
+            return table[i];
         }
+        size_t len = 0;
+        auto it = table[i];
+        while (it != list.end() && hasher(it->first) % table.size() == i) {
+            if (it->first == element.first)
+                break;
+            if (hasher(it->first) != elHash)
+                ++len;
+            ++it;
+        }
+        lenOfChain = len;
+        ++sizeOfList;
+        return list.insert(it, element);
     }
     
     iterator begin() {
-        return lst.begin();
+        return list.begin();
     }
     
     const_iterator begin() const {
-        return lst.begin();
+        return list.begin();
     }
     
     iterator end() {
-        return lst.end();
+        return list.end();
     }
     
     const_iterator end() const {
-        return lst.end();
+        return list.end();
     }
     
-    iterator find(const KeyType& el) {
-        size_t i = hasher(el) % table.size();
-        if (table[i] == lst.end()) {
-            return lst.end();
-        } else {
-            auto it = table[i];
-            while (it != lst.end() && hasher(it->first) % table.size() == i) {
-                if (it->first == el)
-                    return it;
-                ++it;
-            }
+    iterator find(const KeyType& element) {
+        size_t i = hasher(element) % table.size();
+        auto it = table[i];
+        while (it != list.end() && hasher(it->first) % table.size() == i) {
+            if (it->first == element)
+                return it;
+            ++it;
         }
-        return lst.end();
+        return list.end();
     }
     
-    const_iterator find(const KeyType& el) const {
-        size_t i = hasher(el) % table.size();
-        if (table[i] == lst.end()) {
-            return lst.end();
-        } else {
-            auto it = table[i];
-            while (it != lst.end() && hasher(it->first) % table.size() == i) {
-                if (it->first == el)
-                    return it;
-                ++it;
-            }
+    const_iterator find(const KeyType& element) const {
+        size_t i = hasher(element) % table.size();
+        auto it = table[i];
+        while (it != list.end() && hasher(it->first) % table.size() == i) {
+            if (it->first == element)
+                return it;
+            ++it;
         }
-        return lst.end();
+        return list.end();
     }
     
     ValueType& operator[](const KeyType& key) {
         auto it = find(key);
-        if (it == end()) {
-            insert(std::make_pair(key, ValueType()));
-            return (find(key))->second;
-        } else {
+        if (it == end())
+            return insert({key, ValueType()})->second;
+        else
             return it->second;
-        }
     }
     
     const ValueType& at(const KeyType& key) const {
@@ -179,37 +149,39 @@ public:
         if (it == end())
             throw std::out_of_range("out_of_range");
         
-        return (find(key))->second;
+        return it->second;
     }
     
     void clear() {
         table.clear();
-        lst.clear();
-        normalize();
-        table.resize(defaultSize, lst.end());
+        list.clear();
+        defaultParametrs();
+        table.resize(defaultSize, list.end());
     }
     
 private:
-    std::list<std::pair<const KeyType, ValueType>> lst;
-    std::vector<typename std::list<std::pair<const KeyType, ValueType>>::iterator> table;
-    const size_t MAX_WAY = 5, defaultSize = 8;
-    size_t way, curSize;
+    std::list<typeOfPair> list;
+    std::vector<typename std::list<typeOfPair>::iterator> table;
+    const size_t maxLenOfChain = 5;
+    const size_t defaultSize = 8;
+    size_t lenOfChain;
+    size_t sizeOfList;
     Hash hasher;
     
-    void recalc() {
-        std::vector<std::pair<const KeyType, ValueType>> tmp;
-        for (auto x : lst)
-            tmp.push_back(x);
-        
+    void rebuild() {
+        auto copy = std::move(list);
         size_t newSize = table.size() * 2;
         clear();
-        table.resize(newSize, lst.end());
-        for (auto x : tmp)
+        table.resize(newSize, list.end());
+        for (const auto& x : copy)
             insert(x, false);
     }
     
-    void normalize() {
-        way = 0;
-        curSize = 0;
+    void defaultParametrs() {
+        table.resize(defaultSize, list.end());
+        lenOfChain = 0;
+        sizeOfList = 0;
     }
 };
+
+
